@@ -46,3 +46,8 @@ export async function saveEntry(entry: JournalEntry): Promise<void> {
   const db = await getDb()
   await db.put(STORE, entry)
 }
+
+export async function clearAllEntries(): Promise<void> {
+  const db = await getDb()
+  await db.clear(STORE)
+}
