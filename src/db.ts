@@ -1,5 +1,13 @@
 import { openDB } from 'idb'
 
+export interface Repas {
+  id: string
+  categorie: 'petit-dejeuner' | 'dejeuner' | 'diner' | 'collation'
+  heure: string
+  aliments: string[]
+  note?: string
+}
+
 export interface JournalEntry {
   date: string
 
@@ -8,7 +16,7 @@ export interface JournalEntry {
   fenetreOuverte?: boolean
   symptolesReveil?: boolean
 
-  repas: []
+  repas: Repas[]
 
   nbVerresEau: number
 

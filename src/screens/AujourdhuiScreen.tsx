@@ -1,7 +1,19 @@
 import { useEffect, useState } from 'react'
-import { getEntry, saveEntry } from '../db'
+import { getEntry, saveEntry, Repas } from '../db'
 import { todayISO, formatDateFR } from '../utils/date'
 import { computeDuration } from '../utils/sleep'
+
+const CATEGORIE_LABELS: Record<Repas['categorie'], string> = {
+  'petit-dejeuner': 'Petit-déjeuner',
+  'dejeuner': 'Déjeuner',
+  'diner': 'Dîner',
+  'collation': 'Collation',
+}
+
+function currentTimeHHMM(): string {
+  const now = new Date()
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+}
 
 const LOCALISATIONS = ['Front', 'Tempes', 'Derrière les yeux', 'Nuque', 'Diffus', 'Autre']
 
@@ -23,6 +35,8 @@ export function AujourdhuiScreen() {
   const [migraineSoulageeParRepas, setMigraineSoulageeParRepas] = useState<boolean | null>(null)
   const [jourRegles, setJourRegles] = useState<boolean | null>(null)
   const [notesLibres, setNotesLibres] = useState<string>('')
+  const [repas, setRepas] = useState<Repas[]>([])
+  const [showRepasForm, setShowRepasForm] = useState<boolean>(false)
   const [toast, setToast] = useState<boolean>(false)
 
   useEffect(() => {
@@ -43,6 +57,7 @@ export function AujourdhuiScreen() {
       if (entry.migraineSoulageeParRepas !== undefined) setMigraineSoulageeParRepas(entry.migraineSoulageeParRepas)
       if (entry.jourRegles !== undefined) setJourRegles(entry.jourRegles)
       if (entry.notesLibres) setNotesLibres(entry.notesLibres)
+      if (entry.repas?.length) setRepas(entry.repas)
     })
   }, [today])
 
@@ -55,7 +70,7 @@ export function AujourdhuiScreen() {
       heureLever: heureLever || undefined,
       fenetreOuverte: fenetreOuverte ?? undefined,
       symptolesReveil: symptolesReveil ?? undefined,
-      repas: [],
+      repas,
       nbVerresEau,
       migraine: migraine ?? undefined,
       ...(migraine === true && {
@@ -106,7 +121,49 @@ export function AujourdhuiScreen() {
       </Card>
 
       <Card title="Repas 🍽️">
-        <button className="btn-secondary w-full" disabled>+ Ajouter un repas</button>
+        {repas.length > 0 && (
+          <div className="flex flex-col">
+            {repas.map((r, i) => (
+              <div key={r.id}>
+                {i > 0 && <div className="my-2" style={{ borderTop: '1px solid var(--color-border)' }} />}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                      {CATEGORIE_LABELS[r.categorie]}{' '}
+                      <span className="font-normal" style={{ color: 'var(--color-text-muted)' }}>{r.heure}</span>
+                    </span>
+                    <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                      {r.aliments.join(', ')}
+                    </span>
+                    {r.note && (
+                      <span className="text-sm italic" style={{ color: 'var(--color-text-muted)' }}>{r.note}</span>
+                    )}
+                  </div>
+                  <button
+                    className="text-sm shrink-0"
+                    style={{ color: 'var(--color-danger)', background: 'transparent', border: 'none' }}
+                    onClick={() => setRepas((prev) => prev.filter((x) => x.id !== r.id))}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {showRepasForm
+          ? <RepasForm
+              onAdd={(r) => { setRepas((prev) => [...prev, r]); setShowRepasForm(false) }}
+              onCancel={() => setShowRepasForm(false)}
+            />
+          : <button
+              className="w-full rounded-xl py-2.5 text-sm font-semibold text-white"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+              onClick={() => setShowRepasForm(true)}
+            >
+              + Ajouter un repas
+            </button>
+        }
       </Card>
 
       <Card title="Hydratation 💧">
@@ -238,6 +295,122 @@ export function AujourdhuiScreen() {
           Journée enregistrée ✓
         </div>
       )}
+    </div>
+  )
+}
+
+function RepasForm({ onAdd, onCancel }: { onAdd: (r: Repas) => void; onCancel: () => void }) {
+  const [categorie, setCategorie] = useState<Repas['categorie']>('dejeuner')
+  const [heure, setHeure] = useState<string>(currentTimeHHMM())
+  const [aliments, setAliments] = useState<string[]>([])
+  const [alimentInput, setAlimentInput] = useState<string>('')
+  const [note, setNote] = useState<string>('')
+
+  function addAliment() {
+    const trimmed = alimentInput.trim()
+    if (!trimmed) return
+    setAliments((prev) => [...prev, trimmed])
+    setAlimentInput('')
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') { e.preventDefault(); addAliment() }
+  }
+
+  function handleAdd() {
+    onAdd({ id: crypto.randomUUID(), categorie, heure, aliments, note: note || undefined })
+  }
+
+  return (
+    <div className="flex flex-col gap-3 pt-1">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm" style={{ color: 'var(--color-text)' }}>Catégorie</span>
+        <select
+          value={categorie}
+          onChange={(e) => setCategorie(e.target.value as Repas['categorie'])}
+          className="rounded-lg border px-2 py-1.5 text-sm outline-none"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-bg)' }}
+        >
+          <option value="petit-dejeuner">Petit-déjeuner</option>
+          <option value="dejeuner">Déjeuner</option>
+          <option value="diner">Dîner</option>
+          <option value="collation">Collation</option>
+        </select>
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm" style={{ color: 'var(--color-text)' }}>Heure</span>
+        <input
+          type="time"
+          className="input-time"
+          value={heure}
+          onChange={(e) => setHeure(e.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-sm" style={{ color: 'var(--color-text)' }}>Aliments</span>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Ajouter un aliment…"
+            value={alimentInput}
+            onChange={(e) => setAlimentInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-bg)' }}
+          />
+          <button
+            onClick={addAliment}
+            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >+</button>
+        </div>
+        {aliments.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {aliments.map((a, i) => (
+              <span
+                key={i}
+                className="flex items-center gap-1 rounded-full px-3 py-1 text-sm"
+                style={{ backgroundColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              >
+                {a}
+                <button
+                  onClick={() => setAliments((prev) => prev.filter((_, j) => j !== i))}
+                  className="ml-0.5 font-semibold leading-none"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >×</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-sm" style={{ color: 'var(--color-text)' }}>Note</span>
+        <textarea
+          placeholder="Remarque optionnelle…"
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full resize-none rounded-lg border p-3 text-sm outline-none"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-bg)' }}
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={onCancel}
+          className="flex-1 rounded-xl py-2.5 text-sm font-semibold border"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)', backgroundColor: 'transparent' }}
+        >Annuler</button>
+        <button
+          onClick={handleAdd}
+          disabled={aliments.length === 0}
+          className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white"
+          style={{ backgroundColor: aliments.length === 0 ? 'var(--color-text-muted)' : 'var(--color-primary)' }}
+        >Ajouter</button>
+      </div>
     </div>
   )
 }
