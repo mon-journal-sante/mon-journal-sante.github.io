@@ -13,6 +13,13 @@ export interface JournalEntry {
   nbVerresEau: number
 
   migraine?: boolean
+  migraineAuReveil?: boolean
+  heureApparitionMigraine?: string
+  heureDisparitionMigraine?: string
+  intensiteMigraine?: number
+  localisationMigraine?: string[]
+  nausees?: boolean
+  migraineSoulageeParRepas?: boolean
 
   jourRegles?: boolean
 

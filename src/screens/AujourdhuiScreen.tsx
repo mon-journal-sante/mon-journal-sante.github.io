@@ -3,6 +3,8 @@ import { getEntry, saveEntry } from '../db'
 import { todayISO, formatDateFR } from '../utils/date'
 import { computeDuration } from '../utils/sleep'
 
+const LOCALISATIONS = ['Front', 'Tempes', 'Derrière les yeux', 'Nuque', 'Diffus', 'Autre']
+
 export function AujourdhuiScreen() {
   const today = todayISO()
 
@@ -12,6 +14,13 @@ export function AujourdhuiScreen() {
   const [symptolesReveil, setSymptolesReveil] = useState<boolean | null>(null)
   const [nbVerresEau, setNbVerresEau] = useState<number>(0)
   const [migraine, setMigraine] = useState<boolean | null>(null)
+  const [migraineAuReveil, setMigraineAuReveil] = useState<boolean | null>(null)
+  const [heureApparitionMigraine, setHeureApparitionMigraine] = useState<string>('')
+  const [heureDisparitionMigraine, setHeureDisparitionMigraine] = useState<string>('')
+  const [intensiteMigraine, setIntensiteMigraine] = useState<number>(5)
+  const [localisationMigraine, setLocalisationMigraine] = useState<string[]>([])
+  const [nausees, setNausees] = useState<boolean | null>(null)
+  const [migraineSoulageeParRepas, setMigraineSoulageeParRepas] = useState<boolean | null>(null)
   const [jourRegles, setJourRegles] = useState<boolean | null>(null)
   const [notesLibres, setNotesLibres] = useState<string>('')
   const [toast, setToast] = useState<boolean>(false)
@@ -25,6 +34,13 @@ export function AujourdhuiScreen() {
       if (entry.symptolesReveil !== undefined) setSymptolesReveil(entry.symptolesReveil)
       setNbVerresEau(entry.nbVerresEau)
       if (entry.migraine !== undefined) setMigraine(entry.migraine)
+      if (entry.migraineAuReveil !== undefined) setMigraineAuReveil(entry.migraineAuReveil)
+      if (entry.heureApparitionMigraine) setHeureApparitionMigraine(entry.heureApparitionMigraine)
+      if (entry.heureDisparitionMigraine) setHeureDisparitionMigraine(entry.heureDisparitionMigraine)
+      if (entry.intensiteMigraine !== undefined) setIntensiteMigraine(entry.intensiteMigraine)
+      if (entry.localisationMigraine) setLocalisationMigraine(entry.localisationMigraine)
+      if (entry.nausees !== undefined) setNausees(entry.nausees)
+      if (entry.migraineSoulageeParRepas !== undefined) setMigraineSoulageeParRepas(entry.migraineSoulageeParRepas)
       if (entry.jourRegles !== undefined) setJourRegles(entry.jourRegles)
       if (entry.notesLibres) setNotesLibres(entry.notesLibres)
     })
@@ -42,6 +58,15 @@ export function AujourdhuiScreen() {
       repas: [],
       nbVerresEau,
       migraine: migraine ?? undefined,
+      ...(migraine === true && {
+        migraineAuReveil: migraineAuReveil ?? undefined,
+        heureApparitionMigraine: (migraineAuReveil === false && heureApparitionMigraine) ? heureApparitionMigraine : undefined,
+        heureDisparitionMigraine: heureDisparitionMigraine || undefined,
+        intensiteMigraine,
+        localisationMigraine: localisationMigraine.length > 0 ? localisationMigraine : undefined,
+        nausees: nausees ?? undefined,
+        migraineSoulageeParRepas: migraineSoulageeParRepas ?? undefined,
+      }),
       jourRegles: jourRegles ?? undefined,
       notesLibres: notesLibres || undefined,
     })
@@ -105,6 +130,71 @@ export function AujourdhuiScreen() {
 
       <Card title="Symptômes">
         <ToggleField label="Migraine aujourd'hui ?" value={migraine} onChange={setMigraine} />
+        {migraine === true && (
+          <>
+            <ToggleField label="Présente dès le réveil ?" value={migraineAuReveil} onChange={setMigraineAuReveil} />
+            {migraineAuReveil === false && (
+              <Field label="Heure d'apparition">
+                <input
+                  type="time"
+                  className="input-time"
+                  value={heureApparitionMigraine}
+                  onChange={(e) => setHeureApparitionMigraine(e.target.value)}
+                />
+              </Field>
+            )}
+            <Field label="Heure de disparition">
+              <input
+                type="time"
+                className="input-time"
+                value={heureDisparitionMigraine}
+                onChange={(e) => setHeureDisparitionMigraine(e.target.value)}
+              />
+            </Field>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm" style={{ color: 'var(--color-text)' }}>
+                Intensité : {intensiteMigraine} / 10
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="1"
+                value={intensiteMigraine}
+                onChange={(e) => setIntensiteMigraine(Number(e.target.value))}
+                className="w-full accent-[var(--color-primary)]"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-sm" style={{ color: 'var(--color-text)' }}>Localisation</span>
+              <div className="flex flex-wrap gap-2">
+                {LOCALISATIONS.map((loc) => {
+                  const active = localisationMigraine.includes(loc)
+                  return (
+                    <button
+                      key={loc}
+                      onClick={() =>
+                        setLocalisationMigraine((prev) =>
+                          active ? prev.filter((l) => l !== loc) : [...prev, loc]
+                        )
+                      }
+                      className="rounded-lg px-3 py-1 text-sm font-medium border"
+                      style={
+                        active
+                          ? { backgroundColor: 'var(--color-primary)', color: 'white', borderColor: 'var(--color-primary)' }
+                          : { backgroundColor: 'transparent', color: 'var(--color-text-muted)', borderColor: 'var(--color-border)' }
+                      }
+                    >
+                      {loc}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <ToggleField label="Nausées ?" value={nausees} onChange={setNausees} />
+            <ToggleField label="Soulagée par un repas ?" value={migraineSoulageeParRepas} onChange={setMigraineSoulageeParRepas} />
+          </>
+        )}
       </Card>
 
       <Card title="Cycle menstruel">
