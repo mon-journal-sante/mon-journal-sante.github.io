@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getEntry, saveEntry, Repas } from '../db'
 import { todayISO, formatDateFR } from '../utils/date'
 import { computeDuration } from '../utils/sleep'
+import { identifyFoodFromPhoto, ClaudeApiError } from '../utils/claude'
 
 const CATEGORIE_LABELS: Record<Repas['categorie'], string> = {
   'petit-dejeuner': 'Petit-déjeuner',
@@ -16,6 +17,16 @@ function currentTimeHHMM(): string {
 }
 
 const LOCALISATIONS = ['Front', 'Tempes', 'Derrière les yeux', 'Nuque', 'Diffus', 'Autre']
+
+const HTTP_LABELS: Record<number, string> = {
+  401: 'clé API invalide',
+  403: 'accès refusé',
+  429: 'quota dépassé',
+  500: 'erreur serveur',
+  502: 'erreur serveur',
+  503: 'erreur serveur',
+  504: 'erreur serveur',
+}
 
 export function AujourdhuiScreen() {
   const today = todayISO()
@@ -305,12 +316,30 @@ function RepasForm({ onAdd, onCancel }: { onAdd: (r: Repas) => void; onCancel: (
   const [aliments, setAliments] = useState<string[]>([])
   const [alimentInput, setAlimentInput] = useState<string>('')
   const [note, setNote] = useState<string>('')
+  const [photoLoading, setPhotoLoading] = useState<boolean>(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const [photoDebug, setPhotoDebug] = useState<object | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   function addAliment() {
     const trimmed = alimentInput.trim()
     if (!trimmed) return
     setAliments((prev) => [...prev, trimmed])
     setAlimentInput('')
+    setPhotoError(null)
+    setPhotoDebug(null)
+  }
+
+  function downloadDebug(payload: object) {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `debug-claude-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -319,6 +348,52 @@ function RepasForm({ onAdd, onCancel }: { onAdd: (r: Repas) => void; onCancel: (
 
   function handleAdd() {
     onAdd({ id: crypto.randomUUID(), categorie, heure, aliments, note: note || undefined })
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const apiKey = localStorage.getItem('claude_api_key') ?? ''
+    if (!apiKey) {
+      setPhotoError('Clé API manquante. Renseignez-la dans les Paramètres.')
+      return
+    }
+
+    setPhotoLoading(true)
+    setPhotoError(null)
+    setPhotoDebug(null)
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).replace(/^data:[^;]+;base64,/, ''))
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const identified = await identifyFoodFromPhoto(base64, file.type, apiKey)
+      setAliments((prev) => {
+        const lower = prev.map((a) => a.toLowerCase())
+        const toAdd = identified.filter((a) => !lower.includes(a.toLowerCase()))
+        return [...prev, ...toAdd]
+      })
+    } catch (err) {
+      if (err instanceof ClaudeApiError) {
+        setPhotoDebug(err.debugPayload)
+        setPhotoError(`Identification échouée. Ajoutez les aliments manuellement.`)
+      } else {
+        const match = (err instanceof Error ? err.message : '').match(/HTTP (\d+)/)
+        if (match) {
+          const code = Number(match[1])
+          const label = HTTP_LABELS[code] ?? 'erreur inconnue'
+          setPhotoError(`Identification échouée (${code} — ${label}). Ajoutez les aliments manuellement.`)
+        } else {
+          setPhotoError('Identification échouée. Ajoutez les aliments manuellement.')
+        }
+      }
+    } finally {
+      setPhotoLoading(false)
+    }
   }
 
   return (
@@ -350,6 +425,34 @@ function RepasForm({ onAdd, onCancel }: { onAdd: (r: Repas) => void; onCancel: (
 
       <div className="flex flex-col gap-2">
         <span className="text-sm" style={{ color: 'var(--color-text)' }}>Aliments</span>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={photoLoading}
+          className="w-full rounded-xl py-2.5 text-sm font-semibold border"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)', backgroundColor: 'transparent' }}
+        >
+          {photoLoading ? 'Identification en cours…' : '📷 Identifier par photo'}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={handlePhotoChange}
+        />
+        {photoError && (
+          <span className="text-sm" style={{ color: 'var(--color-danger)' }}>{photoError}</span>
+        )}
+        {photoDebug && (
+          <button
+            onClick={() => downloadDebug(photoDebug)}
+            className="text-sm text-left underline"
+            style={{ color: 'var(--color-text-muted)', background: 'transparent', border: 'none', padding: 0 }}
+          >
+            Télécharger le rapport de débogage
+          </button>
+        )}
         <div className="flex gap-2">
           <input
             type="text"
