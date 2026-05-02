@@ -59,3 +59,9 @@ export async function clearAllEntries(): Promise<void> {
   const db = await getDb()
   await db.clear(STORE)
 }
+
+export async function getAllEntries(): Promise<JournalEntry[]> {
+  const db = await getDb()
+  const all = await db.getAll(STORE)
+  return all.sort((a, b) => b.date.localeCompare(a.date))
+}
