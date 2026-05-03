@@ -174,53 +174,71 @@ export function CorrelationsScreen() {
   }
 
   // --- Corr. 6 — Cycle menstruel ---
-  const settings = JSON.parse(localStorage.getItem('settings') ?? '{}')
-  const dureeCycle: number = settings.dureeCycle ?? 28
-  const dureeLuteale: number = settings.dureeLuteale ?? 14
-  const dureeMenstruation: number = settings.dureeMenstruation ?? 5
-  const jourOvulation = dureeCycle - dureeLuteale
+  const reglesEnts = entries
+    .filter(e => e.jourRegles === true)
+    .map(e => e.date)
+    .sort()
+
+  const runs: { start: string; length: number }[] = []
+  if (reglesEnts.length > 0) {
+    let runStart = reglesEnts[0]
+    let runLen = 1
+    for (let i = 1; i < reglesEnts.length; i++) {
+      const gap = (Date.parse(reglesEnts[i]) - Date.parse(reglesEnts[i - 1])) / 86400000
+      if (gap >= 2) {
+        runs.push({ start: runStart, length: runLen })
+        runStart = reglesEnts[i]
+        runLen = 1
+      } else {
+        runLen++
+      }
+    }
+    runs.push({ start: runStart, length: runLen })
+  }
+
+  const DUREE_LUTEALE = 14
+  const DUREE_MENSTRUATION = runs.length > 0
+    ? Math.round(runs.reduce((sum, r) => sum + r.length, 0) / runs.length)
+    : 5
+  const DUREE_CYCLE = runs.length >= 2
+    ? Math.round(
+        runs.slice(1).reduce(
+          (sum, r, i) => sum + (Date.parse(r.start) - Date.parse(runs[i].start)) / 86400000,
+          0
+        ) / (runs.length - 1)
+      )
+    : 28
+  const debutDernierCycle: string | undefined = runs.length > 0 ? runs[runs.length - 1].start : undefined
+
+  const jourOvulation = DUREE_CYCLE - DUREE_LUTEALE
   const debutOvulatoire = jourOvulation - 1
   const finOvulatoire = jourOvulation + 1
 
   let corr6: ReactNode
-  const cycleParamsValid = dureeCycle >= 21 && dureeCycle <= 35
-    && (dureeMenstruation + 1) <= (debutOvulatoire - 1)
+  const cycleParamsValid =
+    DUREE_CYCLE >= 21 && DUREE_CYCLE <= 35 &&
+    (DUREE_MENSTRUATION + 1) <= (debutOvulatoire - 1)
 
   if (!cycleParamsValid) {
-    corr6 = <Muted>Paramètres de cycle incohérents. Vérifie la durée du cycle et la durée des règles dans les Paramètres.</Muted>
+    corr6 = <Muted>Les données de cycle semblent incohérentes. Continue à remplir ton journal pour affiner l'analyse.</Muted>
   } else {
-    let debutDernierCycle: string | undefined = settings.debutDernierCycle
-
-    if (!debutDernierCycle) {
-      const reglesEnts = entries.filter(e => e.jourRegles === true).map(e => e.date).sort()
-      if (reglesEnts.length > 0) {
-        const runs: string[][] = [[reglesEnts[0]]]
-        for (let i = 1; i < reglesEnts.length; i++) {
-          const gap = (Date.parse(reglesEnts[i]) - Date.parse(reglesEnts[i - 1])) / 86400000
-          if (gap >= 2) runs.push([reglesEnts[i]])
-          else runs[runs.length - 1].push(reglesEnts[i])
-        }
-        debutDernierCycle = runs[runs.length - 1][0]
-      }
-    }
-
     const enriched: EnrichedEntry[] = entries.map(entry => {
       const e = entry as EnrichedEntry
       if (e.jourCycle !== undefined) return e
       if (!debutDernierCycle) return e
       const elapsed = Math.floor((Date.parse(entry.date) - Date.parse(debutDernierCycle)) / 86400000)
       if (elapsed < 0) return e
-      return { ...e, jourCycle: (elapsed % dureeCycle) + 1 }
+      return { ...e, jourCycle: (elapsed % DUREE_CYCLE) + 1 }
     })
 
     const hasAnyJourCycle = enriched.some(e => e.jourCycle !== undefined)
 
     if (!debutDernierCycle && !hasAnyJourCycle) {
-      corr6 = <Muted>Pour activer cette corrélation, renseigne la date de début de ton dernier cycle dans les Paramètres, ou commence à cocher « Jour de règles ? » dans ton journal quotidien.</Muted>
+      corr6 = <Muted>Pour activer cette corrélation, commence à cocher « Jour de règles ? » dans ton journal quotidien.</Muted>
     } else {
       const classifiable = enriched.filter(e =>
         e.jourCycle !== undefined &&
-        getPhase(e.jourCycle!, dureeCycle, dureeLuteale, dureeMenstruation) !== null
+        getPhase(e.jourCycle!, DUREE_CYCLE, DUREE_LUTEALE, DUREE_MENSTRUATION) !== null
       )
 
       if (classifiable.length < 3) {
@@ -228,15 +246,15 @@ export function CorrelationsScreen() {
       } else {
         type PhaseInfo = { label: string; contexte: string; start: number; end: number; total: number; migraines: number }
         const phaseInfo: Record<Phase, PhaseInfo> = {
-          menstruelle: { label: 'menstruelle', contexte: 'chute des œstrogènes', start: 1, end: dureeMenstruation, total: 0, migraines: 0 },
-          folliculaire: { label: 'folliculaire', contexte: 'montée des œstrogènes', start: dureeMenstruation + 1, end: debutOvulatoire - 1, total: 0, migraines: 0 },
+          menstruelle: { label: 'menstruelle', contexte: 'chute des œstrogènes', start: 1, end: DUREE_MENSTRUATION, total: 0, migraines: 0 },
+          folliculaire: { label: 'folliculaire', contexte: 'montée des œstrogènes', start: DUREE_MENSTRUATION + 1, end: debutOvulatoire - 1, total: 0, migraines: 0 },
           ovulatoire: { label: 'ovulatoire', contexte: 'pic de LH', start: debutOvulatoire, end: finOvulatoire, total: 0, migraines: 0 },
-          luteale: { label: 'lutéale', contexte: 'chute de la progestérone', start: finOvulatoire + 1, end: dureeCycle, total: 0, migraines: 0 },
+          luteale: { label: 'lutéale', contexte: 'chute de la progestérone', start: finOvulatoire + 1, end: DUREE_CYCLE, total: 0, migraines: 0 },
         }
 
         for (const entry of enriched) {
           if (entry.jourCycle === undefined) continue
-          const phase = getPhase(entry.jourCycle, dureeCycle, dureeLuteale, dureeMenstruation)
+          const phase = getPhase(entry.jourCycle, DUREE_CYCLE, DUREE_LUTEALE, DUREE_MENSTRUATION)
           if (!phase) continue
           phaseInfo[phase].total++
           if (entry.migraine === true) phaseInfo[phase].migraines++

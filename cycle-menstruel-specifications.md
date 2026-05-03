@@ -36,6 +36,12 @@ Toutes les autres bornes se calculent **à partir de ce pivot**.
 | `DUREE_CYCLE_MIN` | 21 | — | jours |
 | `DUREE_CYCLE_MAX` | 35 | — | jours |
 
+**Note d'implémentation :**
+- `DUREE_LUTEALE` est une vraie constante biologique — hardcodée à 14, jamais dérivée des données.
+- `DUREE_MENSTRUATION` est dérivée de la durée moyenne des runs de `jourRegles` dans le journal. Valeur de repli : 5.
+- `DUREE_CYCLE` est dérivée de l'intervalle moyen entre deux débuts de run consécutifs. Nécessite au moins 2 cycles de données. Valeur de repli : 28.
+- Les cycles hors de la plage [21–35] jours sont hors scope.
+
 ---
 
 ## 4. Définition des phases

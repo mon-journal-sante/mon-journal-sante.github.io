@@ -194,7 +194,6 @@ jour_regles, jour_cycle, notes_libres
 | Paramètre | Type | Détail |
 |-----------|------|--------|
 | **Clé API Claude** | Champ texte (masqué) | Saisie manuelle par l'utilisatrice — voir section 10 |
-| Date de début des règles (dernier cycle) | Sélecteur date | Pour calcul automatique du jour du cycle |
 | Heure notification matin | Sélecteur heure | Défaut : 08h00 |
 | Heure notification soir | Sélecteur heure | Défaut : 21h00 |
 | Activer / désactiver les notifications | Toggle | — |
@@ -239,4 +238,4 @@ L'application est hébergée publiquement. Pour éviter d'exposer une clé API d
 | 🟠 P2 | Export CSV |
 | 🟡 P3 | Corrélations automatiques |
 | 🟡 P3 | Notifications matin/soir |
-| 🟢 P4 | Paramètres cycle menstruel / heures de notif |
+| 🟢 P4 | Paramètres heures de notification |
