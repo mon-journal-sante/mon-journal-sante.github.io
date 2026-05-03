@@ -19,12 +19,27 @@ export function HistoriqueScreen() {
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
+  const [pastDayMode, setPastDayMode] = useState(false)
+  const [pastDayDate, setPastDayDate] = useState('')
 
   useEffect(() => {
     getAllEntries().then(setEntries)
   }, [])
 
   const selectedEntry = selected ? entries.find(e => e.date === selected) : undefined
+
+  if (pastDayMode && pastDayDate) {
+    return (
+      <AujourdhuiScreen
+        date={pastDayDate}
+        onSaved={() => {
+          getAllEntries().then(setEntries)
+          setPastDayMode(false)
+          setPastDayDate('')
+        }}
+      />
+    )
+  }
 
   if (selected && selectedEntry && editing) {
     return (
@@ -45,6 +60,39 @@ export function HistoriqueScreen() {
   return (
     <div className="flex flex-col gap-4 p-4 pb-28">
       <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Historique</h1>
+
+      {!pastDayMode && (
+        <button
+          className="w-full rounded-xl py-2.5 text-sm font-semibold border"
+          style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)', backgroundColor: 'transparent' }}
+          onClick={() => setPastDayMode(true)}
+        >
+          + Saisir un jour passé
+        </button>
+      )}
+
+      {pastDayMode && !pastDayDate && (
+        <div className="flex flex-col gap-2">
+          <input
+            type="date"
+            max={(() => {
+              const d = new Date()
+              d.setDate(d.getDate() - 1)
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            })()}
+            className="rounded-lg border px-2 py-1.5 text-sm outline-none"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-bg)' }}
+            onChange={(e) => setPastDayDate(e.target.value)}
+          />
+          <button
+            className="text-sm"
+            style={{ color: 'var(--color-text-muted)', background: 'transparent', border: 'none', padding: 0, textAlign: 'left' }}
+            onClick={() => setPastDayMode(false)}
+          >
+            Annuler
+          </button>
+        </div>
+      )}
 
       {entries.length === 0 ? (
         <div className="flex items-center justify-center py-16 text-center">
