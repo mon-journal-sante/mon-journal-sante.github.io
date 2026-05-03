@@ -195,9 +195,10 @@ interface JournalEntry {
   nausees?: boolean;
   migraineSoulageeParRepas?: boolean;
 
+  temperature?: number;        // °C, 35–42
+
   // Cycle
   jourRegles?: boolean;
-  jourCycle?: number;
 
   // Notes
   notesLibres?: string;
@@ -216,4 +217,4 @@ interface Repas {
 | Clé | Type | Contenu |
 |-----|------|---------|
 | `claude_api_key` | string | Clé API Anthropic saisie par l'utilisatrice |
-| `settings` | JSON | Heures de notif, date début cycle, notifs activées |
+| `settings` | JSON | Paramètres de l'application (inclus dans l'export JSON) |

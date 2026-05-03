@@ -87,6 +87,7 @@ L'utilisatrice peut ajouter autant de repas que nécessaire dans la journée.
 
 | Champ | Type | Détail |
 |-------|------|--------|
+| Température (°C) | Champ numérique | Ex : 37.5 — min 35, max 42, pas 0.1 |
 | Migraine aujourd'hui ? | Toggle Oui / Non | Si Non → section réduite |
 | Présente dès le réveil ? | Toggle Oui / Non | Visible seulement si Migraine = Oui |
 | Heure d'apparition | Sélecteur heure | Visible si Migraine = Oui et pas dès le réveil |
@@ -103,7 +104,8 @@ L'utilisatrice peut ajouter autant de repas que nécessaire dans la journée.
 | Champ | Type | Détail |
 |-------|------|--------|
 | Jour de règles ? | Toggle Oui / Non | — |
-| Jour du cycle (optionnel) | Champ numérique | Ex : Jour 3 — calculé automatiquement si date de début renseignée dans paramètres |
+
+Le jour du cycle n'est pas affiché dans la saisie quotidienne. Il est calculé dynamiquement dans l'écran Corrélations à partir des runs de jours de règles enregistrés dans le journal (voir section 6).
 
 ---
 
@@ -154,26 +156,41 @@ Analyse automatique des données sur les 30 derniers jours minimum (ou depuis le
 
 ---
 
-## 7. Export CSV
+## 7. Sauvegarde / Restauration (JSON)
 
-Accessible depuis l'écran Historique ou Paramètres.
+Accessible depuis l'écran Paramètres (carte "Sauvegarde / Restauration").
 
-**Bouton : "Exporter mes données (CSV)"**
+### Export
 
-### Colonnes du fichier exporté
+**Bouton : "Exporter mes données et configuration (JSON)"**
 
+Génère un fichier JSON téléchargeable contenant :
+
+```ts
+{
+  version: 1,
+  exportDate: string,       // YYYY-MM-DD
+  config: {
+    claude_api_key?: string,
+    settings?: unknown,
+  },
+  entries: JournalEntry[],
+}
 ```
-date, heure_coucher, heure_lever, duree_sommeil_min, fenetre_ouverte,
-repas_categories, aliments_identifies, nb_verres_eau,
-migraine, migraine_au_reveil, heure_apparition_migraine, heure_disparition_migraine,
-intensite_migraine, localisation_migraine, nausees, migraine_soulagee_par_repas,
-jour_regles, jour_cycle, notes_libres
-```
 
-- Séparateur : point-virgule (compatible Excel français)
-- Encodage : UTF-8 avec BOM
-- Nom du fichier : `journal-migraines-AAAA-MM-JJ.csv`
+- Nom du fichier : `journal-sante-AAAA-MM-JJ.json`
 - Téléchargement direct sur l'appareil
+- ⚠️ Ce fichier contient la clé API — ne pas partager
+
+### Import
+
+**Bouton : "Importer mes données et configuration"**
+
+- Ouvre le sélecteur de fichier (`.json` uniquement)
+- Validation : `version === 1` et `entries` est un tableau ; message d'erreur si invalide
+- Demande confirmation avant d'écraser les données existantes
+- Efface IndexedDB, réimporte toutes les entrées, restaure `claude_api_key` et `settings` depuis `config`
+- Recharge la page après import réussi
 
 ---
 
