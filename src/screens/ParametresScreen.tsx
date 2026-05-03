@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { clearAllEntries } from '../db'
+import { clearAllEntries, getAllEntries } from '../db'
+import { exportCsv } from '../utils/exportCsv'
 
 export function ParametresScreen() {
   const [apiKey, setApiKey] = useState<string>('')
@@ -7,6 +8,7 @@ export function ParametresScreen() {
   const [keySaved, setKeySaved] = useState<boolean>(false)
   const [confirmClear, setConfirmClear] = useState<boolean>(false)
   const [cleared, setCleared] = useState<boolean>(false)
+  const [exporting, setExporting] = useState<boolean>(false)
 
   useEffect(() => {
     setApiKey(localStorage.getItem('claude_api_key') ?? '')
@@ -16,6 +18,13 @@ export function ParametresScreen() {
     localStorage.setItem('claude_api_key', apiKey.trim())
     setKeySaved(true)
     setTimeout(() => setKeySaved(false), 2000)
+  }
+
+  async function handleExport() {
+    setExporting(true)
+    const entries = await getAllEntries()
+    exportCsv(entries)
+    setExporting(false)
   }
 
   async function handleConfirmClear() {
@@ -71,6 +80,17 @@ export function ParametresScreen() {
           style={{ backgroundColor: keySaved ? 'var(--color-success)' : 'var(--color-primary)' }}
         >
           {keySaved ? 'Clé enregistrée ✓' : 'Enregistrer la clé'}
+        </button>
+      </Card>
+
+      <Card title="Export">
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="w-full rounded-xl py-3 text-sm font-semibold text-white"
+          style={{ backgroundColor: exporting ? 'var(--color-text-muted)' : 'var(--color-primary)' }}
+        >
+          {exporting ? 'Export en cours…' : 'Exporter mes données (CSV)'}
         </button>
       </Card>
 
