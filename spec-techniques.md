@@ -13,8 +13,7 @@
 | Styles | Tailwind CSS |
 | Stockage local | IndexedDB via `idb` (journal) + localStorage (clé API, paramètres) |
 | API Claude | Anthropic API `v1/messages` — modèle `claude-haiku-4-5-20251001` |
-| Notifications | Web Notifications API + Service Worker |
-| Export CSV | Génération côté client (Blob + download) |
+| Export JSON | Génération côté client (Blob + download) |
 | Appareil photo | `<input type="file" accept="image/*" capture="environment">` |
 | Hébergement | GitHub Pages |
 | CI/CD | GitHub Actions |

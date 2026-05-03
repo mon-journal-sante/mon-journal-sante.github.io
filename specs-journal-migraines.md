@@ -179,13 +179,7 @@ jour_regles, jour_cycle, notes_libres
 
 ## 8. Notifications
 
-| Notification | Heure | Message |
-|-------------|-------|---------|
-| Rappel matin | 08h00 (configurable) | *"Bonjour ! N'oublie pas de noter ton sommeil et comment tu te sens ce matin."* |
-| Rappel soir | 21h00 (configurable) | *"C'est l'heure de compléter ton journal de la journée."* |
-
-- L'utilisatrice doit accepter les permissions au premier lancement
-- Heures modifiables dans les Paramètres
+Fonctionnalité abandonnée. L'API Web ne permet pas de déclencher une notification à une heure précise sans serveur push. L'application est hébergée statiquement sur GitHub Pages — ajouter un serveur contredit la contrainte de confidentialité (stockage local uniquement).
 
 ---
 
@@ -194,10 +188,8 @@ jour_regles, jour_cycle, notes_libres
 | Paramètre | Type | Détail |
 |-----------|------|--------|
 | **Clé API Claude** | Champ texte (masqué) | Saisie manuelle par l'utilisatrice — voir section 10 |
-| Heure notification matin | Sélecteur heure | Défaut : 08h00 |
-| Heure notification soir | Sélecteur heure | Défaut : 21h00 |
-| Activer / désactiver les notifications | Toggle | — |
-| Exporter les données CSV | Bouton | — |
+| Exporter les données JSON | Bouton | — |
+| Importer les données JSON | Bouton | — |
 | Effacer toutes les données | Bouton (avec confirmation) | Action irréversible |
 
 ---
@@ -237,5 +229,3 @@ L'application est hébergée publiquement. Pour éviter d'exposer une clé API d
 | 🟠 P2 | Historique consultable et modifiable |
 | 🟠 P2 | Export CSV |
 | 🟡 P3 | Corrélations automatiques |
-| 🟡 P3 | Notifications matin/soir |
-| 🟢 P4 | Paramètres heures de notification |
