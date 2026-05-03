@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { clearAllEntries, getAllEntries } from '../db'
-import { exportCsv } from '../utils/exportCsv'
+import { useRef, useEffect, useState } from 'react'
+import { clearAllEntries, getAllEntries, saveEntry } from '../db'
+import { exportJson, BackupData } from '../utils/exportJson'
 
 export function ParametresScreen() {
   const [apiKey, setApiKey] = useState<string>('')
@@ -9,6 +9,11 @@ export function ParametresScreen() {
   const [confirmClear, setConfirmClear] = useState<boolean>(false)
   const [cleared, setCleared] = useState<boolean>(false)
   const [exporting, setExporting] = useState<boolean>(false)
+  const [importPending, setImportPending] = useState<BackupData | null>(null)
+  const [importing, setImporting] = useState<boolean>(false)
+  const [importDone, setImportDone] = useState<boolean>(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setApiKey(localStorage.getItem('claude_api_key') ?? '')
@@ -23,8 +28,45 @@ export function ParametresScreen() {
   async function handleExport() {
     setExporting(true)
     const entries = await getAllEntries()
-    exportCsv(entries)
+    exportJson(entries)
     setExporting(false)
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setImportError(null)
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text) as BackupData
+      if (data.version !== 1 || !Array.isArray(data.entries)) {
+        setImportError('Fichier invalide ou incompatible.')
+        return
+      }
+      setImportPending(data)
+    } catch {
+      setImportError('Impossible de lire ce fichier.')
+    }
+  }
+
+  async function handleConfirmImport() {
+    if (!importPending) return
+    setImporting(true)
+    await clearAllEntries()
+    for (const entry of importPending.entries) {
+      await saveEntry(entry)
+    }
+    if (importPending.config.claude_api_key) {
+      localStorage.setItem('claude_api_key', importPending.config.claude_api_key)
+    }
+    if (importPending.config.settings) {
+      localStorage.setItem('settings', JSON.stringify(importPending.config.settings))
+    }
+    setImporting(false)
+    setImportPending(null)
+    setImportDone(true)
+    setTimeout(() => window.location.reload(), 1500)
   }
 
   async function handleConfirmClear() {
@@ -83,15 +125,66 @@ export function ParametresScreen() {
         </button>
       </Card>
 
-      <Card title="Export">
+      <Card title="Sauvegarde / Restauration">
         <button
           onClick={handleExport}
           disabled={exporting}
           className="w-full rounded-xl py-3 text-sm font-semibold text-white"
           style={{ backgroundColor: exporting ? 'var(--color-text-muted)' : 'var(--color-primary)' }}
         >
-          {exporting ? 'Export en cours…' : 'Exporter mes données (CSV)'}
+          {exporting ? 'Export en cours…' : 'Exporter mes données et configuration (JSON)'}
         </button>
+        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          Ce fichier contient votre clé API. Ne le partagez pas.
+        </p>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {importDone ? (
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Import réussi. Rechargement…</p>
+        ) : importPending ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              Cette action remplacera toutes tes données et ta configuration actuelles.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setImportPending(null)}
+                className="flex-1 rounded-xl py-3 text-sm font-semibold border"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)', backgroundColor: 'transparent' }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleConfirmImport}
+                disabled={importing}
+                className="flex-1 rounded-xl py-3 text-sm font-semibold text-white"
+                style={{ backgroundColor: importing ? 'var(--color-text-muted)' : 'var(--color-primary)' }}
+              >
+                {importing ? 'Import en cours…' : "Confirmer l'import"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded-xl py-3 text-sm font-semibold border"
+              style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)', backgroundColor: 'transparent' }}
+            >
+              Importer mes données et configuration
+            </button>
+            {importError && (
+              <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{importError}</p>
+            )}
+          </>
+        )}
       </Card>
 
       <Card title="Données">
