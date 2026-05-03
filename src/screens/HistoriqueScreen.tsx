@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { JournalEntry, Repas, getAllEntries } from '../db'
+import { AujourdhuiScreen } from './AujourdhuiScreen'
 import { formatDateFR } from '../utils/date'
 import { computeDuration } from '../utils/sleep'
 
@@ -17,6 +18,7 @@ function capitalize(s: string): string {
 export function HistoriqueScreen() {
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [selected, setSelected] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     getAllEntries().then(setEntries)
@@ -24,8 +26,20 @@ export function HistoriqueScreen() {
 
   const selectedEntry = selected ? entries.find(e => e.date === selected) : undefined
 
+  if (selected && selectedEntry && editing) {
+    return (
+      <AujourdhuiScreen
+        date={selectedEntry.date}
+        onSaved={() => {
+          getAllEntries().then(setEntries)
+          setEditing(false)
+        }}
+      />
+    )
+  }
+
   if (selected && selectedEntry) {
-    return <DetailView entry={selectedEntry} onBack={() => setSelected(null)} />
+    return <DetailView entry={selectedEntry} onBack={() => setSelected(null)} onEdit={() => setEditing(true)} />
   }
 
   return (
@@ -83,7 +97,7 @@ export function HistoriqueScreen() {
   )
 }
 
-function DetailView({ entry, onBack }: { entry: JournalEntry; onBack: () => void }) {
+function DetailView({ entry, onBack, onEdit }: { entry: JournalEntry; onBack: () => void; onEdit: () => void }) {
   const hasSommeil =
     entry.heureCoucher !== undefined ||
     entry.heureLever !== undefined ||
@@ -103,7 +117,13 @@ function DetailView({ entry, onBack }: { entry: JournalEntry; onBack: () => void
         <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
           {capitalize(formatDateFR(entry.date))}
         </span>
-        <span className="text-sm font-semibold invisible" aria-hidden="true">← Retour</span>
+        <button
+          onClick={onEdit}
+          className="text-sm font-semibold"
+          style={{ color: 'var(--color-primary)', background: 'transparent', border: 'none', padding: 0 }}
+        >
+          Modifier
+        </button>
       </div>
 
       {hasSommeil && (
@@ -154,11 +174,16 @@ function DetailView({ entry, onBack }: { entry: JournalEntry; onBack: () => void
         </Card>
       )}
 
-      {entry.migraine !== undefined && (
+      {(entry.migraine !== undefined || entry.temperature !== undefined) && (
         <Card title="Symptômes">
+          {entry.temperature !== undefined && (
+            <Row label="🌡️ Température" value={`${entry.temperature} °C`} />
+          )}
+          {entry.migraine !== undefined && (
           <p className="text-sm" style={{ color: 'var(--color-text)' }}>
             Migraine : {entry.migraine ? 'Oui' : 'Non'}
           </p>
+          )}
           {entry.migraine === true && (
             <>
               {entry.migraineAuReveil === true && (

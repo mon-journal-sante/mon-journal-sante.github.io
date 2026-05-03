@@ -28,8 +28,8 @@ const HTTP_LABELS: Record<number, string> = {
   504: 'erreur serveur',
 }
 
-export function AujourdhuiScreen() {
-  const today = todayISO()
+export function AujourdhuiScreen({ date: dateProp, onSaved }: { date?: string; onSaved?: () => void } = {}) {
+  const today = dateProp ?? todayISO()
 
   const [heureCoucher, setHeureCoucher] = useState<string>('')
   const [heureLever, setHeureLever] = useState<string>('')
@@ -44,6 +44,7 @@ export function AujourdhuiScreen() {
   const [localisationMigraine, setLocalisationMigraine] = useState<string[]>([])
   const [nausees, setNausees] = useState<boolean | null>(null)
   const [migraineSoulageeParRepas, setMigraineSoulageeParRepas] = useState<boolean | null>(null)
+  const [temperature, setTemperature] = useState<string>('')
   const [jourRegles, setJourRegles] = useState<boolean | null>(null)
   const [notesLibres, setNotesLibres] = useState<string>('')
   const [repas, setRepas] = useState<Repas[]>([])
@@ -66,6 +67,7 @@ export function AujourdhuiScreen() {
       if (entry.localisationMigraine) setLocalisationMigraine(entry.localisationMigraine)
       if (entry.nausees !== undefined) setNausees(entry.nausees)
       if (entry.migraineSoulageeParRepas !== undefined) setMigraineSoulageeParRepas(entry.migraineSoulageeParRepas)
+      if (entry.temperature !== undefined) setTemperature(String(entry.temperature))
       if (entry.jourRegles !== undefined) setJourRegles(entry.jourRegles)
       if (entry.notesLibres) setNotesLibres(entry.notesLibres)
       if (entry.repas?.length) setRepas(entry.repas)
@@ -93,17 +95,21 @@ export function AujourdhuiScreen() {
         nausees: nausees ?? undefined,
         migraineSoulageeParRepas: migraineSoulageeParRepas ?? undefined,
       }),
+      temperature: temperature !== '' ? parseFloat(temperature) : undefined,
       jourRegles: jourRegles ?? undefined,
       notesLibres: notesLibres || undefined,
     })
     setToast(true)
-    setTimeout(() => setToast(false), 2500)
+    setTimeout(() => {
+      setToast(false)
+      onSaved?.()
+    }, 2500)
   }
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-28">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Aujourd'hui</h1>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>{onSaved ? 'Modifier' : "Aujourd'hui"}</h1>
         <p className="text-sm capitalize" style={{ color: 'var(--color-text-muted)' }}>{formatDateFR(today)}</p>
       </div>
 
@@ -197,6 +203,19 @@ export function AujourdhuiScreen() {
       </Card>
 
       <Card title="Symptômes">
+        <Field label="Température (°C)">
+          <input
+            type="number"
+            step="0.1"
+            min="35"
+            max="42"
+            placeholder="37.0"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            className="rounded-lg border px-2 py-1.5 text-sm outline-none w-24 text-right"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', backgroundColor: 'var(--color-bg)' }}
+          />
+        </Field>
         <ToggleField label="Migraine aujourd'hui ?" value={migraine} onChange={setMigraine} />
         {migraine === true && (
           <>
@@ -289,7 +308,7 @@ export function AujourdhuiScreen() {
         style={{ backgroundColor: 'var(--color-primary)' }}
         onClick={handleSave}
       >
-        Enregistrer la journée
+        {onSaved ? 'Enregistrer les modifications' : 'Enregistrer la journée'}
       </button>
 
       {toast && (
@@ -509,9 +528,9 @@ function RepasForm({ onAdd, onCancel }: { onAdd: (r: Repas) => void; onCancel: (
         >Annuler</button>
         <button
           onClick={handleAdd}
-          disabled={aliments.length === 0}
+          disabled={aliments.length === 0 && !note.trim()}
           className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white"
-          style={{ backgroundColor: aliments.length === 0 ? 'var(--color-text-muted)' : 'var(--color-primary)' }}
+          style={{ backgroundColor: aliments.length === 0 && !note.trim() ? 'var(--color-text-muted)' : 'var(--color-primary)' }}
         >Ajouter</button>
       </div>
     </div>

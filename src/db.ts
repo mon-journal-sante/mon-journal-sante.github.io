@@ -29,6 +29,8 @@ export interface JournalEntry {
   nausees?: boolean
   migraineSoulageeParRepas?: boolean
 
+  temperature?: number
+
   jourRegles?: boolean
 
   notesLibres?: string
